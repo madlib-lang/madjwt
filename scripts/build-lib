@@ -1,0 +1,41 @@
+#!/bin/sh
+
+if [ ! -d "lib/include" ]; then
+  mkdir -p .buildlibs
+  mkdir -p lib/include
+  mkdir -p lib/lib
+
+  cd .buildlibs
+
+  # install libjansson
+  wget https://github.com/akheron/jansson/archive/refs/tags/v2.14.zip
+  unzip v2.14.zip
+  cd jansson-2.14
+  autoreconf -i
+  ./configure
+  make
+  cp src/.libs/*.a ../../lib/lib/
+  cp src/*.h ../../lib/include/
+  cd ..
+
+  # install libjwt
+  wget https://github.com/benmcollins/libjwt/archive/refs/tags/v1.15.2.zip
+  unzip v1.15.2.zip
+  cd libjwt-1.15.2
+
+  MADLIB_RUNTIME_LIB_HEADERS_PATH="$(madlib config runtime-lib-headers-path)"
+  MADLIB_INSTALL_DIR="$(madlib config install-dir)"
+
+  autoreconf -i
+  JANSSON_LIBS="-L$(pwd)/../../lib/lib -ljansson" JANSSON_CFLAGS="-I$(pwd)/../../lib/include" OPENSSL_LIBS="-L$MADLIB_INSTALL_DIR/runtime/lib -lssl -lcrypto" OPENSSL_CFLAGS="-I$MADLIB_RUNTIME_LIB_HEADERS_PATH" ./configure
+  make
+  cp libjwt/.libs/*.a ../../lib/lib/
+  cp include/*.h ../../lib/include/
+
+  cd ../..
+
+  rm -rf .buildlibs
+fi
+
+# build libmadjwt.a
+make -C lib -j
