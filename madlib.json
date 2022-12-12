@@ -3,7 +3,8 @@
     "madlibVersion": "0.18.0",
     "main": "src/Main.mad",
     "staticLibs": [
-      "./lib/build/libjansson.a",
+      "./lib/build/libmadjwt.a",
+      "./lib/lib/libjansson.a",
       "./lib/lib/libjwt.a"
     ],
     "hooks": {
