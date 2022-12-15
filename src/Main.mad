@@ -1,54 +1,73 @@
+import type { JsonValue } from "JsonValue"
+import type { Either } from "Either"
+
 import IO from "IO"
+import { printJson } from "JsonPrinter"
+import { JsonNull, JsonObject, JsonString } from "JsonValue"
+import { jsonValue } from "JsonParser"
+import { runParser } from "Parse"
+import { mapLeft } from "Either"
+
+
 
 export type Algorithm
-  = None
+  = ES256
+  | ES384
+  | ES512
   | HS256
   | HS384
   | HS512
+  | None
   | RS256
   | RS384
   | RS512
-  | ES256
-  | ES384
-  | ES512
   | Term
 
-type Field
-  = StringType(String)
-  | BooleanType(Boolean)
-  | IntegerType(Integer)
 
-string :: String -> Field
-export string = StringType
+export type Error
+  = DecodingError(String)
 
-boolean :: Boolean -> Field
-export boolean = BooleanType
 
-integer :: Integer -> Field
-export integer = IntegerType
+export alias Token = { algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue }
 
-export alias Config = {
-  claims :: Dictionary String Field,
-  headers :: Dictionary String Field,
-  algorithm :: Algorithm,
+alias InternalToken = { algorithm :: Algorithm, claims :: String, headers :: String }
+
+alias LibJwtResult a = { status :: Integer, result :: a }
+
+
+signTokenFFI :: InternalToken -> String -> String
+signTokenFFI = extern "madjwt__signToken"
+
+sign :: Token -> String -> String
+export sign = (token, key) => signTokenFFI(
+  {
+    algorithm: token.algorithm,
+    claims: printJson(80, token.claims),
+    headers: printJson(80, token.headers),
+  },
+  key,
+)
+
+
+decodeFFI :: String -> String -> InternalToken
+decodeFFI = extern "madjwt__decode"
+
+decode :: String -> String -> Either Error Token
+export decode = (token, key) => {
+  internalToken = decodeFFI(token, key)
+
+  return pipe(
+    (t) => pipe(.claims, runParser(jsonValue), map((claims) => ({ ...t, claims })))(t),
+    chain((t) => pipe(.headers, runParser(jsonValue), map((headers) => ({ ...t, headers })))(t)),
+    mapLeft(pipe(inspect, DecodingError))
+  )(internalToken)
 }
-
-DEFAULT_CONFIG :: Config
-export DEFAULT_CONFIG = {
-  claims: {{}},
-  headers: {{}},
-  algorithm: HS256,
-}
-
-
-sign :: String -> String -> String
-sign = extern "madjwt__sign"
-
-decode :: String -> String -> String
-decode = extern "madjwt__decode"
 
 main = () => {
-  token = sign("some content", "key")
+  token = sign({ algorithm: HS256, claims: JsonObject({{ "payload": JsonString("this is the stuff") }}), headers: JsonNull }, "some key")
+  decoded = decode(token, "some key")
+  IO.log(0x80)
+
   IO.putLine(token)
-  IO.putLine(decode(token, "key"))
+  IO.log(decoded)
 }
