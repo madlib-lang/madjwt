@@ -15,6 +15,7 @@ if [ ! -d "lib/include" ]; then
   ./configure
   make
   cp src/.libs/*.a ../../lib/lib/
+  cp src/.libs/*.so ../../lib/lib/
   cp src/*.h ../../lib/include/
   cd ..
 
