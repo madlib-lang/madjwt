@@ -18,7 +18,6 @@ jobs:
           node-version: ${{ env.node-version }}
 
       - name: Install libtool
-        # run: HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=TRUE brew install autoconf libtool automake
         run: sudo apt install autoconf libtool
 
       - name: Install Madlib
@@ -28,7 +27,7 @@ jobs:
         run: madlib -v
 
       - name: Install dependencies
-        run: ./scripts/build-lib
+        run: madlib install
 
       - run: ls -l lib/lib
 
