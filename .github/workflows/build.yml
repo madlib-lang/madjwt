@@ -26,6 +26,8 @@ jobs:
       - name: Install dependencies
         run: madlib install
 
+      - run: ls -l lib/lib
+
       - name: Run tests
         run: madlib test --target llvm --coverage
 
