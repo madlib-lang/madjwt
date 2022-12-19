@@ -12,10 +12,9 @@ if [ ! -d "lib/include" ]; then
   unzip v2.14.zip
   cd jansson-2.14
   autoreconf -i
-  ./configure
+  ./configure --disable-shared
   make
   cp src/.libs/*.a ../../lib/lib/
-  cp src/.libs/*.so ../../lib/lib/
   cp src/*.h ../../lib/include/
   cd ..
 
@@ -28,7 +27,7 @@ if [ ! -d "lib/include" ]; then
   MADLIB_INSTALL_DIR="$(madlib config install-dir)"
 
   autoreconf -i
-  JANSSON_LIBS="-L$(pwd)/../../lib/lib -ljansson" JANSSON_CFLAGS="-I$(pwd)/../../lib/include" OPENSSL_LIBS="-L$MADLIB_INSTALL_DIR/runtime/lib -lssl -lcrypto" OPENSSL_CFLAGS="-I$MADLIB_RUNTIME_LIB_HEADERS_PATH" ./configure
+  JANSSON_LIBS="-L$(pwd)/../../lib/lib -ljansson" JANSSON_CFLAGS="-I$(pwd)/../../lib/include" OPENSSL_LIBS="-L$MADLIB_INSTALL_DIR/runtime/lib -lssl -lcrypto" OPENSSL_CFLAGS="-I$MADLIB_RUNTIME_LIB_HEADERS_PATH" ./configure --disable-shared
   make
   cp libjwt/.libs/*.a ../../lib/lib/
   cp include/*.h ../../lib/include/
