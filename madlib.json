@@ -7,8 +7,8 @@
     "postInstall": "./scripts/build-lib"
   },
   "staticLibs": [
-    "./lib/build/libmadjwt.a",
     "./lib/lib/libjansson.a",
-    "./lib/lib/libjwt.a"
+    "./lib/lib/libjwt.a",
+    "./lib/build/libmadjwt.a"
   ]
 }
