@@ -7,7 +7,7 @@ name: build
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-11
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -18,7 +18,8 @@ jobs:
           node-version: ${{ env.node-version }}
 
       - name: Install libtool
-        run: sudo apt install autoconf libtool
+        run: HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=TRUE brew install autoconf libtool
+        # run: sudo apt install autoconf libtool
 
       - name: Install Madlib
         run: npm install -g @madlib-lang/madlib
