@@ -1,73 +1,209 @@
-import type { JsonValue } from "JsonValue"
+import type { DateTime } from "Date"
 import type { Either } from "Either"
+import type { JsonValue } from "JsonValue"
+import type { Maybe } from "Maybe"
 
-import IO from "IO"
-import { printJson } from "JsonPrinter"
-import { JsonNull, JsonObject, JsonString } from "JsonValue"
+import Date from "Date"
+import Dictionary from "Dictionary"
+import { Left, Right, mapLeft } from "Either"
 import { jsonValue } from "JsonParser"
+import { printJson } from "JsonPrinter"
+import { JsonInteger, JsonObject } from "JsonValue"
+import List from "List"
+import { Just, Nothing } from "Maybe"
 import { runParser } from "Parse"
-import { mapLeft } from "Either"
 
 
 
-export type Algorithm
-  = ES256
-  | ES384
-  | ES512
-  | HS256
-  | HS384
-  | HS512
-  | None
-  | RS256
-  | RS384
-  | RS512
-  | Term
-
+export type Algorithm = ES256 | ES384 | ES512 | HS256 | HS384 | HS512 | None | RS256 | RS384 | RS512
 
 export type Error
   = DecodingError(String)
-
+  | UnknownError
+  | BadInput
+  | ValidationError
+  | AlgorithmMismatch
+  | Expired
+  | NotValidYet
+  | BadClaim(String)
 
 export alias Token = { algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue }
 
+export alias Validation = { algorithm :: Algorithm, claims :: JsonValue, now :: DateTime }
+
 alias InternalToken = { algorithm :: Algorithm, claims :: String, headers :: String }
 
-alias LibJwtResult a = { status :: Integer, result :: a }
+alias LibJwtResult a = { result :: a, status :: Integer }
+
+/**
+ * Utility to set empty headers or claims
+ *
+ * @since 0.0.1
+ */
+emptyObject :: JsonValue
+export emptyObject = JsonObject({{  }})
 
 
-signTokenFFI :: InternalToken -> String -> String
+codeToError :: Integer -> Error
+codeToError = where {
+  22 =>
+    BadInput
+
+  _ =>
+    UnknownError
+}
+
+
+signTokenFFI :: InternalToken -> String -> LibJwtResult String
 signTokenFFI = extern "madjwt__signToken"
 
-sign :: Token -> String -> String
-export sign = (token, key) => signTokenFFI(
-  {
-    algorithm: token.algorithm,
-    claims: printJson(80, token.claims),
-    headers: printJson(80, token.headers),
-  },
-  key,
-)
+/**
+ * Signs a Token.
+ * 
+ * If successful, it returns a Right containing the base64 encoded string of
+ * the token record, otherwise it returns a Left with the given Error.
+ *
+ * @since 0.0.1
+ * @example
+ * sign(
+ *   {
+ *     algorithm: HS256,
+ *     claims: JsonObject({{ "exp": JsonInteger(SOME_TIMESTAMP) }}),
+ *     headers: emptyHeaders,
+ *   },
+ *   "some key",
+ * )
+ */
+sign :: Token -> String -> Either Error String
+export sign = (token, key) => {
+  result = signTokenFFI(
+    {
+      algorithm: token.algorithm,
+      claims: printJson(80, token.claims),
+      headers: printJson(80, token.headers),
+    },
+    key,
+  )
+
+  return result.status > 0 ? Left(codeToError(result.status)) : Right(result.result)
+}
 
 
-decodeFFI :: String -> String -> InternalToken
+decodeFFI :: String -> String -> LibJwtResult InternalToken
 decodeFFI = extern "madjwt__decode"
 
+/**
+ * Decodes a JWT token.
+ *
+ * If the key is an empty string the signature is not checked.
+ *
+ * If it was successfully decoded it returns a Right of the token record, from
+ * which claims and headers are readable. Otherwise it returns a Left containing
+ * the error.
+ */
 decode :: String -> String -> Either Error Token
 export decode = (token, key) => {
   internalToken = decodeFFI(token, key)
 
-  return pipe(
-    (t) => pipe(.claims, runParser(jsonValue), map((claims) => ({ ...t, claims })))(t),
-    chain((t) => pipe(.headers, runParser(jsonValue), map((headers) => ({ ...t, headers })))(t)),
-    mapLeft(pipe(inspect, DecodingError))
-  )(internalToken)
+  return if (internalToken.status > 0) {
+    pipe(
+      .status,
+      codeToError,
+      Left,
+    )(internalToken)
+  } else {
+    pipe(
+      .result,
+      (t) => pipe(
+        .claims,
+        runParser(jsonValue),
+        map((claims) => ({ ...t, claims })),
+      )(t),
+      chain(
+        (t) => pipe(
+          .headers,
+          runParser(jsonValue),
+          map((headers) => ({ ...t, headers })),
+        )(t),
+      ),
+      mapLeft(
+        pipe(
+          inspect,
+          DecodingError,
+        ),
+      ),
+    )(internalToken)
+  }
 }
 
-main = () => {
-  token = sign({ algorithm: HS256, claims: JsonObject({{ "payload": JsonString("this is the stuff") }}), headers: JsonNull }, "some key")
-  decoded = decode(token, "some key")
-  IO.log(0x80)
 
-  IO.putLine(token)
-  IO.log(decoded)
+findIntegerClaim :: String -> JsonValue -> Maybe Integer
+findIntegerClaim = (claimName, allClaims) => where(allClaims) {
+  JsonObject(claims) =>
+    where(Dictionary.get(claimName, claims)) {
+      Just(JsonInteger(value)) =>
+        Just(value)
+
+      _ =>
+        Nothing
+    }
+
+  _ =>
+    Nothing
+}
+
+
+verify :: Validation -> Token -> Either Error Token
+export verify = (validate, token) => {
+  status = Right(token)
+
+  if (validate.algorithm != token.algorithm) do { status = Left(AlgorithmMismatch) }
+
+  exp = findIntegerClaim("exp", token.claims)
+  where(exp) {
+    Just(t) =>
+      if (Date.getTimestamp(validate.now) >= t) do { status = Left(Expired) }
+
+    _ =>
+      {}
+  }
+
+  nbf = findIntegerClaim("nbf", token.claims)
+  where(nbf) {
+    Just(t) =>
+      if (Date.getTimestamp(validate.now) < t) do { status = Left(NotValidYet) }
+
+    _ =>
+      {}
+  }
+
+  claimsDictFromToken = where(token.claims) {
+    JsonObject(cs) =>
+      cs
+
+    _ =>
+      {{  }}
+  }
+
+  claimsDictFromValidate = where(validate.claims) {
+    JsonObject(cs) =>
+      cs
+
+    _ =>
+      {{  }}
+  }
+
+  status = List.reduce(
+    (newStatus, claim) => where(claim) {
+      #[claimName, claimValue] =>
+        pipe(
+          Dictionary.get(claimName),
+          (foundClaim) => Just(claimValue) == foundClaim ? newStatus : Left(BadClaim(claimName)),
+        )(claimsDictFromToken)
+    },
+    status,
+    Dictionary.toList(claimsDictFromValidate),
+  )
+
+  return status
 }

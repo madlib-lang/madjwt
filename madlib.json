@@ -1,14 +1,14 @@
 {
-    "name": "MadJwt",
-    "madlibVersion": "0.18.0",
-    "main": "src/Main.mad",
-    "staticLibs": [
-      "./lib/build/libmadjwt.a",
-      "./lib/lib/libjansson.a",
-      "./lib/lib/libjwt.a"
-    ],
-    "hooks": {
-      "postInstall": "./scripts/build-lib"
-    }
-  }
-  
+  "name": "MadJwt",
+  "version": "0.0.1",
+  "madlibVersion": "0.18.7",
+  "main": "src/Main.mad",
+  "hooks": {
+    "postInstall": "./scripts/build-lib"
+  },
+  "staticLibs": [
+    "./lib/build/libmadjwt.a",
+    "./lib/lib/libjansson.a",
+    "./lib/lib/libjwt.a"
+  ]
+}

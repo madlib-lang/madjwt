@@ -2,6 +2,9 @@ lib/lib
 lib/include
 lib/build
 src/Test.mad
+.coverage
+.tests
+.module_cache
 
 .vscode
 .buildlibs

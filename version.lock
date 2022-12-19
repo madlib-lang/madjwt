@@ -1,0 +1,80 @@
+{
+  "buildHash": "6bcf34471f3b11adb00df9a5c42f229d",
+  "jsApi": {
+    "apiInstances": [],
+    "apiAliases": {
+      "Validation": "{ algorithm :: Algorithm, claims :: JsonValue, now :: DateTime }",
+      "Token": "{ algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue }"
+    },
+    "apiInterfaces": {},
+    "apiNames": {
+      "decode": "String -> String -> Either Error { algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue }",
+      "emptyObject": "JsonValue",
+      "verify": "{ algorithm :: Algorithm, claims :: JsonValue, now :: DateTime } -> { algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue } -> Either Error { algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue }",
+      "sign": "{ algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue } -> String -> Either Error String"
+    },
+    "apiTypes": {
+      "Algorithm": [
+        "ES256",
+        "ES384",
+        "ES512",
+        "HS256",
+        "HS384",
+        "HS512",
+        "None",
+        "RS256",
+        "RS384",
+        "RS512"
+      ],
+      "Error": [
+        "DecodingError String",
+        "UnknownError",
+        "BadInput",
+        "ValidationError",
+        "AlgorithmMismatch",
+        "Expired",
+        "NotValidYet",
+        "BadClaim String"
+      ]
+    }
+  },
+  "llvmApi": {
+    "apiInstances": [],
+    "apiAliases": {
+      "Validation": "{ algorithm :: Algorithm, claims :: JsonValue, now :: DateTime }",
+      "Token": "{ algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue }"
+    },
+    "apiInterfaces": {},
+    "apiNames": {
+      "decode": "String -> String -> Either Error { algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue }",
+      "emptyObject": "JsonValue",
+      "verify": "{ algorithm :: Algorithm, claims :: JsonValue, now :: DateTime } -> { algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue } -> Either Error { algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue }",
+      "sign": "{ algorithm :: Algorithm, claims :: JsonValue, headers :: JsonValue } -> String -> Either Error String"
+    },
+    "apiTypes": {
+      "Algorithm": [
+        "ES256",
+        "ES384",
+        "ES512",
+        "HS256",
+        "HS384",
+        "HS512",
+        "None",
+        "RS256",
+        "RS384",
+        "RS512"
+      ],
+      "Error": [
+        "DecodingError String",
+        "UnknownError",
+        "BadInput",
+        "ValidationError",
+        "AlgorithmMismatch",
+        "Expired",
+        "NotValidYet",
+        "BadClaim String"
+      ]
+    }
+  },
+  "versionHash": "25e64aa754c310d45c1e084d574c1bb0"
+}

@@ -1,0 +1,93 @@
+import Date from "Date"
+import { Left, isRight } from "Either"
+import { JsonInteger, JsonObject, JsonString } from "JsonValue"
+import { assertEquals, test } from "Test"
+
+import Jwt from "./Main"
+
+
+
+test(
+  "verify - good",
+  () => do {
+    token = pipe(
+      Jwt.sign({
+        algorithm: Jwt.HS256,
+        claims: JsonObject({{
+          "exp": JsonInteger(Date.getTimestamp(Date.now()) + 1000000),
+          "randomClaim": JsonString("e"),
+        }}),
+        headers: Jwt.emptyObject,
+      }),
+      chain(Jwt.decode($, "some key")),
+      chain(
+        Jwt.verify({
+          algorithm: Jwt.HS256,
+          claims: JsonObject({{ "randomClaim": JsonString("e") }}),
+          now: Date.now(),
+        }),
+      ),
+    )("some key")
+
+    return assertEquals(isRight(token), true)
+  },
+)
+
+test(
+  "verify - no exp",
+  () => do {
+    token = pipe(
+      Jwt.sign({ algorithm: Jwt.HS256, claims: JsonObject({{  }}), headers: Jwt.emptyObject }),
+      chain(Jwt.decode($, "some key")),
+      chain(Jwt.verify({ algorithm: Jwt.HS256, claims: JsonObject({{  }}), now: Date.now() })),
+    )("some key")
+
+    return assertEquals(isRight(token), true)
+  },
+)
+
+test(
+  "verify - bad claim",
+  () => do {
+    token = pipe(
+      Jwt.sign({ algorithm: Jwt.HS256, claims: JsonObject({{  }}), headers: Jwt.emptyObject }),
+      chain(Jwt.decode($, "some key")),
+      chain(
+        Jwt.verify({
+          algorithm: Jwt.HS256,
+          claims: JsonObject({{ "not-there": JsonInteger(3) }}),
+          now: Date.now(),
+        }),
+      ),
+    )("some key")
+
+    return assertEquals(token, Left(Jwt.BadClaim("not-there")))
+  },
+)
+
+test(
+  "verify - expired",
+  () => pipe(
+    Jwt.sign({
+      algorithm: Jwt.HS256,
+      claims: JsonObject({{ "exp": JsonInteger(Date.getTimestamp(Date.now()) - 200) }}),
+      headers: Jwt.emptyObject,
+    }),
+    chain(Jwt.decode($, "some key")),
+    chain(Jwt.verify({ algorithm: Jwt.HS256, claims: Jwt.emptyObject, now: Date.now() })),
+    assertEquals($, Left(Jwt.Expired)),
+  )("some key"),
+)
+
+test(
+  "verify - wrong key",
+  () => pipe(
+    Jwt.sign({
+      algorithm: Jwt.HS256,
+      claims: JsonObject({{ "exp": JsonInteger(Date.getTimestamp(Date.now()) - 200) }}),
+      headers: Jwt.emptyObject,
+    }),
+    chain(Jwt.decode($, "wrong key")),
+    assertEquals($, Left(Jwt.BadInput)),
+  )("some key"),
+)

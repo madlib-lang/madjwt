@@ -2,8 +2,6 @@
 #include "madjwt.hpp"
 #include <time.h>
 #include <string.h>
-#include "jwt.h"
-#include "record.hpp"
 
 
 #ifdef __cplusplus
@@ -86,9 +84,30 @@ int64_t madjwt__toMadlibAlg(jwt_alg_t algIndex) {
 }
 
 
-char *madjwt__signToken(madlib__record__Record_t *tokenInfo, char *key) {
+madlib__record__Record_t *madjwt__makeResult(int64_t status, void *resultData) {
+  madlib__record__Record_t *result = (madlib__record__Record_t*) GC_MALLOC(sizeof(madlib__record__Record_t));
+  madlib__record__Field **fields = (madlib__record__Field_t**) GC_MALLOC(sizeof(madlib__record__Field_t*) * 2);
+  madlib__record__Field *resultField = (madlib__record__Field_t*) GC_MALLOC(sizeof(madlib__record__Field_t));
+  madlib__record__Field *statusField = (madlib__record__Field_t*) GC_MALLOC(sizeof(madlib__record__Field_t));
+
+  resultField->name = (char*) "result";
+  resultField->value = resultData;
+
+  statusField->name = (char*) "status";
+  statusField->value = (void*) status;
+
+  fields[0] = resultField;
+  fields[1] = statusField;
+
+  result->fieldCount = 2;
+  result->fields = fields;
+
+  return result;
+}
+
+
+madlib__record__Record_t *madjwt__signToken(madlib__record__Record_t *tokenInfo, char *key) {
   jwt_set_alloc(GC_malloc, GC_realloc, GC_free);
-  time_t iat = time(NULL);
   jwt_t *token = NULL;
   int ret = 0;
 
@@ -96,21 +115,32 @@ char *madjwt__signToken(madlib__record__Record_t *tokenInfo, char *key) {
   char *claims = (char*) tokenInfo->fields[1]->value;
   char *headers = (char*) tokenInfo->fields[2]->value;
 
-  ret = jwt_new(&token);
-  ret = jwt_add_grants_json(token, claims);
-  ret = jwt_add_headers_json(token, headers);
-  ret = jwt_set_alg(token, alg, (const unsigned char *) key, strlen(key));
+  ret |= jwt_new(&token);
+  ret |= jwt_add_grants_json(token, claims);
+  ret |= jwt_add_headers_json(token, headers);
+  ret |= jwt_set_alg(token, alg, (const unsigned char *) key, strlen(key));
+
+  if (ret > 0) {
+    return madjwt__makeResult(ret, NULL);
+  }
 
   char *encoded = jwt_encode_str(token);
 
-  return encoded;
+  return encoded == NULL
+    ? madjwt__makeResult(1, NULL)
+    : madjwt__makeResult(0, encoded);
 }
 
 
 madlib__record__Record_t *madjwt__decode(char *tokenStr, char *key) {
+  jwt_set_alloc(GC_malloc, GC_realloc, GC_free);
   jwt_t *token = NULL;
   int ret = 0;
   ret = jwt_decode(&token, (const char *) tokenStr, (const unsigned char*) key, strlen(key));
+
+  if (ret > 0) {
+    return madjwt__makeResult(ret, NULL);
+  }
 
   char *claims = jwt_get_grants_json(token, NULL);
   char *headers = jwt_get_headers_json(token, NULL);
@@ -124,14 +154,14 @@ madlib__record__Record_t *madjwt__decode(char *tokenStr, char *key) {
   madlib__record__Field *claimsField = (madlib__record__Field_t*) GC_MALLOC(sizeof(madlib__record__Field_t));
   madlib__record__Field *headersField = (madlib__record__Field_t*) GC_MALLOC(sizeof(madlib__record__Field_t));
 
-  algField->name = "algorithm";
-  algField->value = (void*)alg;
+  algField->name = (char*) "algorithm";
+  algField->value = (void*) alg;
 
-  claimsField->name = "claims";
-  claimsField->value = (void*)claims;
+  claimsField->name = (char*) "claims";
+  claimsField->value = (void*) (claims == NULL ? "" : claims);
 
-  headersField->name = "headers";
-  headersField->value = (void*)headers;
+  headersField->name = (char*) "headers";
+  headersField->value = (void*) (headers == NULL ? "" : headers);
 
   fields[0] = algField;
   fields[1] = claimsField;
@@ -140,7 +170,7 @@ madlib__record__Record_t *madjwt__decode(char *tokenStr, char *key) {
   result->fieldCount = 3;
   result->fields = fields;
 
-  return result;
+  return madjwt__makeResult(0, result);
 }
 
 
