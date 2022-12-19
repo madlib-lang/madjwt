@@ -24,7 +24,7 @@ jobs:
         run: madlib -v
 
       - name: Install dependencies
-        run: madlib install
+        run: ./scripts/build-lib
 
       - run: ls -l lib/lib
 
