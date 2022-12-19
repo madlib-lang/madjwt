@@ -7,7 +7,7 @@ name: build
 
 jobs:
   build:
-    runs-on: macos-11
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -16,6 +16,9 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ env.node-version }}
+
+      - name: Install libtool
+        run: apt install autoconf libtool
 
       - name: Install Madlib
         run: npm install -g @madlib-lang/madlib
